@@ -10,8 +10,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-title" content="카드 리포트">
-<title>카드 리포트</title>
+<meta name="apple-mobile-web-app-title" content="센카드">
+<title>센카드</title>
 <style>
   :root{
     --bg:#0b0f14; --panel:#121821; --panel2:#182130; --line:#22303f;
@@ -102,6 +102,15 @@
   .stat-row:last-child{border-bottom:none;}
   .stat-row .n{font-family:var(--mono);font-weight:700;}
 
+  .sr-list{margin-top:8px;}
+  .sr-item{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;
+    background:var(--panel2);}
+  .sr-name{font-size:14px;font-weight:600;}
+  .sr-cat{font-size:11px;color:var(--sub);margin-top:3px;}
+  .sr-go{flex:0 0 auto;background:var(--accent);border:none;border-radius:8px;
+    padding:7px 12px;font-size:12px;font-weight:700;font-family:inherit;}
+  .sr-none{font-size:12px;color:var(--sub);padding:10px 2px;}
   .footer-nav{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
     border-top:1px solid var(--line);display:flex;
     padding:8px 8px calc(env(safe-area-inset-bottom) + 8px);gap:4px;z-index:10;}
@@ -117,8 +126,15 @@
     overflow-y:auto;padding:40px 14px;}
   .modal.show{display:block;}
   .modal-inner{background:var(--panel);border:1px solid var(--line);border-radius:16px;
-    padding:18px;max-width:520px;margin:0 auto;}
-  .modal h3{margin:0 0 14px;font-size:16px;}
+    padding:0 18px 18px;max-width:520px;margin:0 auto;}
+  .modal-head{position:sticky;top:0;background:var(--panel);z-index:2;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px 0 12px;margin-bottom:4px;border-bottom:1px solid var(--line);}
+  .modal-head h3{margin:0;font-size:16px;}
+  .modal-x{background:transparent;border:1px solid var(--line);color:var(--sub);
+    width:34px;height:34px;border-radius:10px;font-size:17px;line-height:1;font-family:inherit;}
+  .modal-actions{position:sticky;bottom:0;background:var(--panel);
+    padding:12px 0 4px;margin-top:16px;border-top:1px solid var(--line);}
   .io-row{display:flex;gap:8px;margin-top:10px;}
   .io-row button{flex:1;}
 </style>
@@ -126,7 +142,7 @@
 <body>
 
 <header>
-  <h1>카드 리포트</h1>
+  <h1>센카드</h1>
   <div class="sub" id="headerSub">-</div>
 </header>
 
@@ -136,8 +152,13 @@
   <div class="view active" id="view-reco">
     <div class="card">
       <h2>결제 전 카드 추천</h2>
-      <label>어디에 쓸 거야?</label>
+      <label>가맹점 검색</label>
+      <input type="text" id="rcSearch" placeholder="예: 모두투어, 넷플릭스, 쿠팡..." autocomplete="off">
+      <div id="rcSearchResult"></div>
+      <label>어디에 쓰실 건가요?</label>
       <select id="rcCategory"></select>
+      <label>가맹점 (선택하시면 더 정확합니다)</label>
+      <select id="rcMerchant"></select>
       <label>금액</label>
       <input type="number" id="rcAmount" inputmode="numeric" placeholder="0">
       <label>결제 방식</label>
@@ -147,7 +168,7 @@
       </div>
       <label>결제처 메모 (선택)</label>
       <input type="text" id="rcMemo" placeholder="예: 헬스장 6개월 등록">
-      <button class="primary" id="btnReco">어떤 카드가 이득인지 계산</button>
+      <button class="primary" id="btnReco">어떤 카드가 유리한지 계산하기</button>
     </div>
 
     <div id="recoResult"></div>
@@ -163,12 +184,27 @@
     <div class="card">
       <h2>이번 달 실적 쌓인 정도</h2>
       <div id="perfList"></div>
-      <div class="note">기록 탭에 저장된 <b>이번 달</b> 결제 기준이야. 카드 혜택은 <b>전월</b> 실적으로 결정되니까, 이건 "다음 달 혜택을 받을 수 있을지" 미리 보는 용도야. 지금 당장의 실적 충족 여부는 위 목록의 버튼으로 직접 켜고 꺼줘.</div>
+      <div class="note">기록 탭에 저장된 <b>이번 달</b> 결제 기준입니다. 카드 혜택은 <b>전월</b> 실적으로 결정되므로, 이 항목은 "다음 달 혜택을 받을 수 있을지" 미리 확인하는 용도입니다. 현재의 실적 충족 여부는 위 목록의 버튼으로 직접 설정해 주세요.</div>
     </div>
   </div>
 
   <!-- 기록 -->
   <div class="view" id="view-log">
+    <div class="card">
+      <h2>결제 내역 직접 추가</h2>
+      <label>날짜</label>
+      <input type="date" id="mlDate">
+      <label>카드</label>
+      <select id="mlCard"></select>
+      <label>카테고리</label>
+      <select id="mlCategory"></select>
+      <label>금액</label>
+      <input type="number" id="mlAmount" inputmode="numeric" placeholder="0">
+      <label>메모 (선택)</label>
+      <input type="text" id="mlMemo" placeholder="예: 마트 장보기">
+      <button class="primary" id="btnManualAdd">기록에 추가</button>
+      <div class="note">혜택 금액은 카드 설정을 기준으로 자동 계산됩니다.</div>
+    </div>
     <div class="card">
       <h2>결제 기록 <span id="txCount"></span></h2>
       <div id="txList"></div>
@@ -183,12 +219,12 @@
   <div class="view" id="view-settings">
     <div class="card">
       <h2>데이터 백업 / 이동</h2>
-      <div class="note">카드 설정과 결제 기록을 통째로 옮길 때 사용. Export한 텍스트를 다른 기기 Import 창에 붙여넣으면 돼.</div>
+      <div class="note">카드 설정과 결제 기록을 통째로 옮기실 때 사용합니다. Export한 텍스트를 다른 기기의 Import 창에 붙여넣으시면 됩니다.</div>
       <div class="io-row">
         <button class="ghost" id="btnExport">Export</button>
         <button class="ghost" id="btnImport">Import</button>
       </div>
-      <textarea id="ioArea" placeholder="Export하면 여기에 JSON이 표시돼."></textarea>
+      <textarea id="ioArea" placeholder="Export하시면 여기에 JSON이 표시됩니다."></textarea>
     </div>
     <div class="card">
       <h2>초기화</h2>
@@ -196,7 +232,7 @@
         <button class="ghost" id="btnResetTx" style="color:var(--warn);border-color:var(--warn);">결제 기록만 삭제</button>
         <button class="ghost" id="btnResetAll" style="color:var(--bad);border-color:var(--bad);">카드 설정까지 전부 초기화</button>
       </div>
-      <div class="note">"전부 초기화"를 하면 카드 목록이 기본 5장 상태로 되돌아가.</div>
+      <div class="note">"전부 초기화"를 하시면 카드 목록이 기본 상태로 되돌아갑니다.</div>
     </div>
   </div>
 
@@ -213,13 +249,18 @@
 
 <div class="modal" id="cardModal">
   <div class="modal-inner">
-    <h3 id="modalTitle">카드 편집</h3>
-    <div id="modalBody"></div>
-    <div class="io-row" style="margin-top:16px;">
-      <button class="ghost" id="btnModalCancel">취소</button>
-      <button class="ghost" id="btnModalDelete" style="color:var(--bad);border-color:var(--bad);">삭제</button>
+    <div class="modal-head">
+      <h3 id="modalTitle">카드 편집</h3>
+      <button class="modal-x" id="btnModalClose">✕</button>
     </div>
-    <button class="primary" id="btnModalSave">저장</button>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="primary" id="btnModalSave" style="margin-top:0;">저장</button>
+      <div class="io-row">
+        <button class="ghost" id="btnModalCancel">취소</button>
+        <button class="ghost" id="btnModalDelete" style="color:var(--bad);border-color:var(--bad);">삭제</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -235,6 +276,31 @@ const CATEGORY_EMOJI = {
 const CATEGORIES = Object.keys(CATEGORY_EMOJI);
 function deco(c){ const e=CATEGORY_EMOJI[c]; return e?`${e}${c}${e}`:c; }
 
+/* ===================== 가맹점(브랜드) 목록 =====================
+   카테고리 안에서 특정 브랜드만 혜택이 다른 경우를 위한 레이어.
+   카드별 merchantRates에 브랜드명으로 요율을 지정하면 카테고리 요율보다 우선 적용됨.
+================================================================ */
+const MERCHANTS = {
+  "식비": ["배달의민족","요기요","쿠팡이츠","일반 음식점"],
+  "카페/간식": ["스타벅스","그 외 카페"],
+  "술/유흥": [],
+  "생활": ["편의점","대형마트","세탁소","다이소"],
+  "온라인쇼핑": ["쿠팡","G마켓","옥션","11번가","위메프","네이버쇼핑","SSG닷컴","그 외 온라인몰"],
+  "패션/쇼핑": ["백화점","아울렛"],
+  "뷰티/미용": ["올리브영","미용실"],
+  "교통": ["카카오T","우티","버스/지하철"],
+  "자동차": ["주유소","전기차충전","세차/정비"],
+  "주거/통신": ["통신비","도시가스","전기요금","아파트관리비"],
+  "의료/건강": ["병원","약국","치과","한의원","동물병원"],
+  "금융": [],
+  "문화/여가": ["넷플릭스","유튜브 프리미엄","영화관","공연/전시"],
+  "여행/숙박": ["하나투어","모두투어","항공사 직접결제","면세점","호텔 직접결제","야놀자/여기어때"],
+  "교육/학습": [],
+  "자녀/육아": [],
+  "반려동물": ["동물병원","펫샵"],
+  "경조/선물": []
+};
+
 function blankRates(v){ const r={}; CATEGORIES.forEach(c=>r[c]=v); return r; }
 
 /* ===================== 기본 카드 DB =====================
@@ -249,7 +315,32 @@ function blankRates(v){ const r={}; CATEGORIES.forEach(c=>r[c]=v); return r; }
 ====================================================== */
 const DEFAULT_CARDS = [
   {
-    id:"shinhan_mrlife", name:"신한 미스터라이프", annualFee:15000, minPerf:300000,
+    id:"shinhan_mrlife",
+    merchantRates:{
+      "쿠팡":10, "G마켓":10, "옥션":10, "11번가":10, "위메프":10,
+      "네이버쇼핑":0, "SSG닷컴":0, "그 외 온라인몰":0,
+      "편의점":10, "세탁소":10, "대형마트":10,
+      "병원":10, "약국":10, "치과":10, "한의원":10, "동물병원":0,
+      "주유소":3, "통신비":10, "도시가스":10, "전기요금":10, "아파트관리비":0
+    },
+    merchantCaps:{
+      "쿠팡":1000, "G마켓":1000, "옥션":1000, "11번가":1000, "위메프":1000,
+      "편의점":1000, "세탁소":1000, "대형마트":5000,
+      "병원":1000, "약국":1000, "치과":1000, "한의원":1000,
+      "통신비":5000, "도시가스":5000, "전기요금":5000
+    },
+    merchantNotes:{
+      "쿠팡":"온라인쇼핑 10%는 오후 9시~오전 9시(Night Time)에만 적용됩니다",
+      "G마켓":"온라인쇼핑 10%는 오후 9시~오전 9시(Night Time)에만 적용됩니다",
+      "옥션":"온라인쇼핑 10%는 오후 9시~오전 9시(Night Time)에만 적용됩니다",
+      "11번가":"온라인쇼핑 10%는 오후 9시~오전 9시(Night Time)에만 적용됩니다",
+      "위메프":"온라인쇼핑 10%는 오후 9시~오전 9시(Night Time)에만 적용됩니다",
+      "네이버쇼핑":"이 카드의 온라인쇼핑 할인 대상은 쿠팡·G마켓·옥션·11번가·위메프 등으로 한정됩니다",
+      "동물병원":"병원/약국 할인 대상에서 동물병원은 제외됩니다",
+      "대형마트":"주말(토·일)에만 적용됩니다",
+      "주유소":"주말(토·일) 리터당 60원 할인 방식입니다 (금액 비례가 아닙니다)",
+      "아파트관리비":"할인 제외 항목입니다"
+    }, name:"신한 미스터라이프", annualFee:15000, minPerf:300000,
     noInstallment:true, monthCap:30000,
     rates:{...blankRates(0), "주거/통신":10, "생활":10, "의료/건강":10,
       "온라인쇼핑":10, "교통":10, "식비":10, "카페/간식":10, "자동차":3},
@@ -275,14 +366,22 @@ const DEFAULT_CARDS = [
     memo:"전월실적 없음. 전 가맹점 대상, 건당 금액 클수록 할인율 상승 (10만↑1%, 30만↑1.5%, 50만↑2%). 월 통합한도 10만원."
   },
   {
-    id:"hyundai_smile", name:"현대 스마일카드", annualFee:20000, minPerf:300000,
+    id:"hyundai_smile",
+    merchantRates:{
+      "G마켓":2, "옥션":2, "스타벅스":2,
+      "네이버쇼핑":0.7, "쿠팡":0.7, "11번가":0.7, "위메프":0.7, "그 외 온라인몰":0.7
+    }, name:"현대 스마일카드", annualFee:20000, minPerf:300000,
     noInstallment:true, monthCap:0,
     rates:{...blankRates(0.7), "온라인쇼핑":2, "카페/간식":2, "패션/쇼핑":2},
     perCaps:blankRates(0),
     memo:"G마켓/옥션/스타벅스 2%, 그 외 0.7% 스마일캐시 적립."
   },
   {
-    id:"toss_check", name:"토스 체크카드", annualFee:0, minPerf:0,
+    id:"toss_check",
+    merchantFlats:{
+      "배달의민족":500, "요기요":500, "쿠팡이츠":500,
+      "쿠팡":500, "G마켓":500, "11번가":500, "네이버쇼핑":500, "그 외 온라인몰":500
+    }, name:"토스 체크카드", annualFee:0, minPerf:0,
     noInstallment:true, monthCap:14000,
     rates:blankRates(0), perCaps:blankRates(0),
     flats:{...blankRates(0), "식비":500, "온라인쇼핑":500},
@@ -325,7 +424,7 @@ function monthBenefitBy(cardId){
 }
 
 /* ===================== 핵심: 카드별 혜택 계산 ===================== */
-function calcBenefit(card, category, amount, payType){
+function calcBenefit(card, category, amount, payType, merchant){
   const notes = [];
   let benefit = 0;
   let basis = "";
@@ -339,6 +438,56 @@ function calcBenefit(card, category, amount, payType){
 
   // 실적 충족 여부: 사용자가 직접 체크 (카드사는 '전월' 기준이라 이번 달 기록으로 자동판정이 불가)
   const perfOk = !card.minPerf || card.perfMet !== false;
+
+  // 0) 가맹점(브랜드) 지정 요율이 있으면 최우선 적용
+  const mFlat = (merchant && card.merchantFlats) ? card.merchantFlats[merchant] : undefined;
+  if(mFlat !== undefined){
+    const unit = amount >= (card.flatMin||10000) ? mFlat : (card.flatSmall||0);
+    let b = unit;
+    if(card.monthCap>0){
+      const used = monthBenefitBy(card.id);
+      const left = Math.max(0, card.monthCap - used);
+      if(b > left){ notes.push(`월 한도 ${fmt(card.monthCap)}원 중 ${fmt(left)}원 남았습니다`); b = left; }
+    }
+    if(card.minPerf && !perfOk){
+      notes.push(`전월실적 ${fmt(card.minPerf)}원 미달로 표시돼 있습니다`);
+      return { benefit:0, basis:`${merchant} 정액 캐시백`, notes, perfShort:true, wouldBe:b };
+    }
+    if(amount >= 100000) notes.push("정액 캐시백이라 금액이 커져도 늘지 않습니다");
+    return { benefit:b, basis:`${merchant} 정액 캐시백 ${fmt(unit)}원`, notes };
+  }
+
+  const mRate = (merchant && card.merchantRates) ? card.merchantRates[merchant] : undefined;
+  if(mRate !== undefined){
+    if(mRate === 0){
+      benefit = 0;
+      basis = `${merchant}은(는) 이 카드의 혜택 대상이 아닙니다`;
+    } else {
+      benefit = amount * mRate/100;
+      basis = `${merchant} ${mRate}%`;
+    }
+    const mCap = (card.merchantCaps && card.merchantCaps[merchant]) || 0;
+    if(mCap>0 && benefit>mCap){
+      notes.push(`건당 한도 ${fmt(mCap)}원에 걸립니다 (한도가 없었다면 ${fmt(benefit)}원)`);
+      benefit = mCap;
+    }
+    if(card.monthCap>0){
+      const used = monthBenefitBy(card.id);
+      const left = Math.max(0, card.monthCap - used);
+      if(benefit > left){
+        notes.push(`월 한도 ${fmt(card.monthCap)}원 중 ${fmt(left)}원 남았습니다`);
+        benefit = left;
+      }
+    }
+    if(card.minPerf && !perfOk){
+      notes.push(`전월실적 ${fmt(card.minPerf)}원 미달로 표시돼 있습니다 (카드 탭에서 변경하실 수 있습니다)`);
+      return { benefit:0, basis, notes, perfShort:true, wouldBe:benefit };
+    }
+    if(card.merchantNotes && card.merchantNotes[merchant]){
+      notes.push(card.merchantNotes[merchant]);
+    }
+    return { benefit, basis, notes };
+  }
 
   // 1) 전 가맹점 구간형 (라스베가스)
   if(card.globalTier){
@@ -359,7 +508,7 @@ function calcBenefit(card, category, amount, payType){
     const unit = amount >= (card.flatMin||10000) ? card.flats[category] : (card.flatSmall||0);
     benefit = unit;
     basis = `${category} 정액 캐시백 ${fmt(unit)}원 (금액 무관 정액)`;
-    if(amount >= 100000) notes.push("정액 캐시백이라 금액이 커도 더 안 늘어남 — 큰 결제엔 불리");
+    if(amount >= 100000) notes.push("정액 캐시백이라 금액이 커져도 늘지 않습니다 — 큰 결제에는 불리합니다");
   }
   // 4) 일반 비율형
   else {
@@ -379,17 +528,17 @@ function calcBenefit(card, category, amount, payType){
     const used = monthBenefitBy(card.id);
     const left = Math.max(0, card.monthCap - used);
     if(benefit > left){
-      notes.push(`월 한도 ${fmt(card.monthCap)}원 중 ${fmt(left)}원 남음`);
+      notes.push(`월 한도 ${fmt(card.monthCap)}원 중 ${fmt(left)}원 남았습니다`);
       benefit = left;
     }
   }
   // 실적 미달로 표시해둔 카드는 혜택 0 처리
   if(card.minPerf && !perfOk){
-    notes.push(`전월실적 ${fmt(card.minPerf)}원 미달로 표시돼 있어 (카드 탭에서 변경 가능)`);
+    notes.push(`전월실적 ${fmt(card.minPerf)}원 미달로 표시돼 있어 (카드 탭에서 변경하실 수 있습니다)`);
     return { benefit:0, basis, notes, perfShort:true, wouldBe:benefit };
   }
   if(card.minPerf){
-    notes.push(`전월실적 ${fmt(card.minPerf)}원 충족 기준으로 계산했어`);
+    notes.push(`전월실적 ${fmt(card.minPerf)}원 충족 기준으로 계산했습니다`);
   }
 
   return { benefit, basis, notes };
@@ -408,22 +557,23 @@ let lastReco = null;
 
 function runReco(){
   const category = document.getElementById('rcCategory').value;
+  const merchant = document.getElementById('rcMerchant').value;
   const amount = Number(document.getElementById('rcAmount').value);
   const memo = document.getElementById('rcMemo').value.trim();
   const box = document.getElementById('recoResult');
-  if(!amount || amount<=0){ showToast('금액을 입력해줘'); return; }
+  if(!amount || amount<=0){ showToast('금액을 입력해 주세요'); return; }
 
   const results = [];
   cards.forEach(c=>{
-    const r = calcBenefit(c, category, amount, payType);
+    const r = calcBenefit(c, category, amount, payType, merchant);
     if(r) results.push({card:c, ...r});
   });
   results.sort((a,b)=> b.benefit - a.benefit);
 
-  if(!results.length){ box.innerHTML='<div class="card"><div class="empty">계산할 카드가 없어</div></div>'; return; }
+  if(!results.length){ box.innerHTML='<div class="card"><div class="empty">계산할 카드가 없습니다</div></div>'; return; }
 
   const win = results[0];
-  lastReco = {category, amount, memo, cardId:win.card.id, benefit:win.benefit};
+  lastReco = {category, amount, memo, merchant, cardId:win.card.id, benefit:win.benefit};
 
   let html = `
     <div class="winner">
@@ -432,7 +582,7 @@ function runReco(){
       <div class="benefit">+${fmt(win.benefit)}원</div>
       <div class="why">${win.basis}</div>
       ${win.notes.map(n=>`<div class="alert">${n}</div>`).join('')}
-      ${win.benefit===0 ? `<div class="alert bad">이 조건에선 어떤 카드도 혜택이 거의 없어. 실적 채우기용으로 아무 카드나 써도 무방해.</div>`:''}
+      ${win.benefit===0 ? `<div class="alert bad">이 조건에서는 어떤 카드도 혜택이 거의 없습니다. 실적을 채우는 용도로 아무 카드나 쓰셔도 무방합니다.</div>`:''}
     </div>
   `;
 
@@ -457,18 +607,18 @@ function runReco(){
   if(amount >= 300000){
     html += `<div class="card"><h2>할부 판단 참고</h2>
       <div class="alert info">
-        ${fmt(amount)}원은 큰 금액이라 무이자 할부가 가능하면 현금흐름상 유리할 수 있어.
+        ${fmt(amount)}원은 큰 금액이라 무이자 할부가 가능하다면 현금흐름 측면에서 유리할 수 있습니다.
         다만 <b>무이자 할부는 대부분 카드에서 적립·할인 대상에서 빠지고, 전월실적에도 안 잡히는 경우가 많아.</b>
-        혜택을 받으려면 일시불, 현금 여유가 빠듯하면 무이자 할부 — 이렇게 갈리는 선택이야.
-        유이자 할부는 수수료(연 10~20%대)가 붙으니 혜택보다 손해가 커.
+        혜택을 받으시려면 일시불, 현금 여유가 빠듯하시면 무이자 할부로 갈리는 선택입니다.
+        유이자 할부는 수수료(연 10~20%대)가 붙어 혜택보다 손해가 큽니다.
       </div>
-      <div class="note">카드별 무이자 할부 행사 여부는 그때그때 카드사 앱에서 확인하는 게 정확해.</div>
+      <div class="note">카드별 무이자 할부 행사 여부는 그때그때 카드사 앱에서 확인하시는 것이 정확합니다.</div>
     </div>`;
   }
 
   html += `<div class="card">
     <h2>이 카드로 결제했다면</h2>
-    <div class="note">기록해두면 이번 달 실적/월 한도 계산이 정확해져.</div>
+    <div class="note">기록해 두시면 이번 달 실적과 월 한도 계산이 정확해집니다.</div>
     <button class="primary" id="btnLogIt">${win.card.name}로 결제함 · 기록하기</button>
   </div>`;
 
@@ -483,12 +633,12 @@ function logLastReco(){
     date: new Date().toISOString().slice(0,10),
     cardId: lastReco.cardId,
     category: lastReco.category,
-    merchant: lastReco.memo || lastReco.category,
+    merchant: lastReco.memo || lastReco.merchant || lastReco.category,
     amount: lastReco.amount,
     benefit: lastReco.benefit
   });
   saveTx();
-  showToast('기록했어');
+  showToast('기록했습니다');
   renderAll();
 }
 
@@ -514,7 +664,7 @@ function togglePerf(id){
   const c = cardById(id);
   c.perfMet = (c.perfMet === false);
   saveCards(); renderAll();
-  showToast(c.perfMet ? `${c.name} 실적 충족으로 변경` : `${c.name} 실적 미달로 변경`);
+  showToast(c.perfMet ? `${c.name} 실적 충족으로 변경했습니다` : `${c.name} 실적 미달로 변경했습니다`);
 }
 window.togglePerf = togglePerf;
 
@@ -538,6 +688,7 @@ function renderPerf(){
 }
 
 let editingId = null;
+let modalSnapshot = null;
 function openCardModal(id){
   editingId = id;
   const c = id ? cardById(id) : null;
@@ -576,27 +727,53 @@ function openCardModal(id){
       </div>`).join('')}</div>
     <label style="margin-top:18px;">메모</label>
     <textarea id="mMemo" style="height:70px;">${d.memo||''}</textarea>
-    <div class="note">구간형(마카오·라스베가스)이나 정액형(토스) 카드는 위 % 입력과 별개로 내부 특수 규칙이 적용돼. 그런 카드는 % 를 0으로 두면 돼.</div>
+    <div class="note">구간형(마카오·라스베가스)이나 정액형(토스) 카드는 위 % 입력과 별개로 내부 특수 규칙이 적용됩니다. 해당 카드는 %를 0으로 두시면 됩니다.</div>
   `;
   document.getElementById('cardModal').classList.add('show');
+  document.querySelector('#cardModal').scrollTop = 0;
+  modalSnapshot = snapshotModal();
 }
 window.openCardModal = openCardModal;
 
 document.getElementById('btnAddCard').addEventListener('click',()=>openCardModal(null));
-document.getElementById('btnModalCancel').addEventListener('click',()=>{
+function snapshotModal(){
+  const parts = [
+    document.getElementById('mName').value,
+    document.getElementById('mFee').value,
+    document.getElementById('mPerf').value,
+    document.getElementById('mCap').value,
+    document.getElementById('mInstall').value,
+    document.getElementById('mExclude').value,
+    document.getElementById('mMemo').value
+  ];
+  CATEGORIES.forEach(cat=>{
+    const k = cat.replace(/\//g,'_');
+    parts.push(document.getElementById('mr_'+k).value);
+    parts.push(document.getElementById('mc_'+k).value);
+  });
+  return parts.join('|');
+}
+function closeCardModal(){
+  if(modalSnapshot !== null && snapshotModal() !== modalSnapshot){
+    if(!confirm('변경사항이 저장되지 않았습니다. 그대로 닫으시겠어요?')) return;
+  }
+  modalSnapshot = null;
   document.getElementById('cardModal').classList.remove('show');
-});
+}
+document.getElementById('btnModalClose').addEventListener('click', closeCardModal);
+document.getElementById('btnModalCancel').addEventListener('click', closeCardModal);
 document.getElementById('btnModalDelete').addEventListener('click',()=>{
   if(!editingId) return;
-  if(!confirm('이 카드를 삭제할까?')) return;
+  if(!confirm('이 카드를 삭제하시겠어요?')) return;
   cards = cards.filter(c=>c.id!==editingId);
   saveCards();
+  modalSnapshot = null;
   document.getElementById('cardModal').classList.remove('show');
-  renderAll(); showToast('삭제했어');
+  renderAll(); showToast('삭제했습니다');
 });
 document.getElementById('btnModalSave').addEventListener('click',()=>{
   const name = document.getElementById('mName').value.trim();
-  if(!name){ showToast('카드명을 입력해줘'); return; }
+  if(!name){ showToast('카드명을 입력해 주세요'); return; }
   const rates={}, perCaps={};
   CATEGORIES.forEach(cat=>{
     const k = cat.replace(/\//g,'_');
@@ -621,15 +798,16 @@ document.getElementById('btnModalSave').addEventListener('click',()=>{
     cards.push(payload);
   }
   saveCards();
+  modalSnapshot = null;
   document.getElementById('cardModal').classList.remove('show');
-  renderAll(); showToast('저장했어');
+  renderAll(); showToast('저장했습니다');
 });
 
 /* ===================== 기록 ===================== */
 function renderTxList(){
   document.getElementById('txCount').textContent = `(${txs.length})`;
   const el = document.getElementById('txList');
-  if(!txs.length){ el.innerHTML='<div class="empty">아직 기록이 없어. 추천 받고 "결제함" 누르면 쌓여.</div>'; return; }
+  if(!txs.length){ el.innerHTML='<div class="empty">아직 기록이 없습니다. 추천 후 "결제함"을 누르시거나 위에서 직접 추가해 주세요.</div>'; return; }
   const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,40);
   el.innerHTML = sorted.map(t=>{
     const c = cardById(t.cardId);
@@ -644,16 +822,39 @@ function renderTxList(){
   }).join('');
 }
 function delTx(id){
-  if(!confirm('이 기록을 삭제할까?')) return;
+  if(!confirm('이 기록을 삭제하시겠어요?')) return;
   txs = txs.filter(t=>t.id!==id);
-  saveTx(); renderAll(); showToast('삭제했어');
+  saveTx(); renderAll(); showToast('삭제했습니다');
 }
 window.delTx = delTx;
+
+document.getElementById('btnManualAdd').addEventListener('click',()=>{
+  const date = document.getElementById('mlDate').value;
+  const cardId = document.getElementById('mlCard').value;
+  const category = document.getElementById('mlCategory').value;
+  const amount = Number(document.getElementById('mlAmount').value);
+  const memo = document.getElementById('mlMemo').value.trim();
+  if(!date || !amount || amount<=0){ showToast('날짜와 금액을 입력해 주세요'); return; }
+  const c = cardById(cardId);
+  const r = c ? calcBenefit(c, category, amount, 'lump', '') : null;
+  txs.push({
+    id: Date.now()+Math.random(),
+    date, cardId, category,
+    merchant: memo || category,
+    amount,
+    benefit: r ? r.benefit : 0
+  });
+  saveTx();
+  document.getElementById('mlAmount').value = '';
+  document.getElementById('mlMemo').value = '';
+  renderAll();
+  showToast('기록에 추가했습니다');
+});
 
 function renderCatStats(){
   const el = document.getElementById('catStats');
   const tx = thisMonthTx();
-  if(!tx.length){ el.innerHTML='<div class="empty">이번 달 기록 없음</div>'; return; }
+  if(!tx.length){ el.innerHTML='<div class="empty">이번 달 기록이 없습니다</div>'; return; }
   const by={};
   tx.forEach(t=>{ by[t.category]=(by[t.category]||0)+Number(t.amount); });
   const total=Object.values(by).reduce((a,b)=>a+b,0);
@@ -669,13 +870,20 @@ function renderCatStats(){
 }
 
 /* ===================== 공통 ===================== */
+function renderManualCardSelect(){
+  const sel = document.getElementById('mlCard');
+  const prev = sel.value;
+  sel.innerHTML = cards.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if(prev && cards.some(c=>c.id===prev)) sel.value = prev;
+}
+
 function renderAll(){
-  renderCardList(); renderPerf(); renderTxList(); renderCatStats();
+  renderCardList(); renderPerf(); renderTxList(); renderCatStats(); renderManualCardSelect();
   const m = thisMonthTx();
   const spent = m.reduce((s,t)=>s+Number(t.amount),0);
   const ben = m.reduce((s,t)=>s+Number(t.benefit||0),0);
   document.getElementById('headerSub').textContent =
-    m.length ? `이번달 ${fmt(spent)}원 · 혜택 ${fmt(ben)}원` : "결제 전에 어떤 카드가 이득인지 확인해봐";
+    m.length ? `이번달 ${fmt(spent)}원 · 혜택 ${fmt(ben)}원` : "결제 전에 어떤 카드가 유리한지 확인해 보세요";
 }
 
 document.querySelectorAll('.tab-btn').forEach(b=>{
@@ -692,7 +900,7 @@ document.getElementById('btnReco').addEventListener('click', runReco);
 
 document.getElementById('btnExport').addEventListener('click',()=>{
   document.getElementById('ioArea').value = JSON.stringify({cards, txs}, null, 2);
-  showToast('Export 완료 - 복사해서 옮겨');
+  showToast('Export 완료 - 복사해서 옮기세요');
 });
 document.getElementById('btnImport').addEventListener('click',()=>{
   try{
@@ -700,16 +908,16 @@ document.getElementById('btnImport').addEventListener('click',()=>{
     if(d.cards) { cards=d.cards; saveCards(); }
     if(d.txs) { txs=d.txs; saveTx(); }
     renderAll(); showToast('Import 완료');
-  }catch(e){ showToast('JSON 형식이 이상해'); }
+  }catch(e){ showToast('JSON 형식이 올바르지 않습니다'); }
 });
 document.getElementById('btnResetTx').addEventListener('click',()=>{
-  if(!confirm('결제 기록을 전부 삭제할까? (카드 설정은 유지)')) return;
-  txs=[]; saveTx(); renderAll(); showToast('기록 삭제됨');
+  if(!confirm('결제 기록을 전부 삭제하시겠어요? (카드 설정은 유지됩니다)')) return;
+  txs=[]; saveTx(); renderAll(); showToast('기록을 삭제했습니다');
 });
 document.getElementById('btnResetAll').addEventListener('click',()=>{
-  if(!confirm('카드 설정까지 전부 초기화할까?')) return;
+  if(!confirm('카드 설정까지 전부 초기화하시겠어요?')) return;
   cards=JSON.parse(JSON.stringify(DEFAULT_CARDS)); txs=[];
-  saveCards(); saveTx(); renderAll(); showToast('초기화됨');
+  saveCards(); saveTx(); renderAll(); showToast('초기화했습니다');
 });
 
 let toastTimer;
@@ -723,6 +931,107 @@ function showToast(msg){
 /* 시작 */
 document.getElementById('rcCategory').innerHTML =
   CATEGORIES.map(c=>`<option value="${c}">${deco(c)}</option>`).join('');
+
+function refreshMerchantSelect(){
+  const cat = document.getElementById('rcCategory').value;
+  const list = MERCHANTS[cat] || [];
+  const sel = document.getElementById('rcMerchant');
+  sel.innerHTML = `<option value="">전체 / 해당 없음</option>` +
+    list.map(m=>`<option value="${m}">${m}</option>`).join('');
+  sel.parentElement.querySelector('label[for]') ;
+}
+document.getElementById('rcCategory').addEventListener('change', refreshMerchantSelect);
+refreshMerchantSelect();
+
+/* ===================== 가맹점 검색 ===================== */
+// 검색용 평탄화 인덱스 (가맹점명 -> 소속 카테고리)
+const MERCHANT_INDEX = [];
+Object.entries(MERCHANTS).forEach(([cat, list])=>{
+  list.forEach(m=>MERCHANT_INDEX.push({merchant:m, category:cat}));
+});
+// 별칭: 검색어가 실제 항목명과 달라도 찾아지도록
+const MERCHANT_ALIAS = {
+  "배민":"배달의민족", "요기":"요기요", "쿠팡이츠":"쿠팡이츠",
+  "넷플":"넷플릭스", "넷플릭스":"넷플릭스", "유튜브":"유튜브 프리미엄", "유툽":"유튜브 프리미엄",
+  "스벅":"스타벅스", "별다방":"스타벅스",
+  "지마켓":"G마켓", "gmarket":"G마켓", "옥션":"옥션",
+  "카카오택시":"카카오T", "카톡택시":"카카오T", "카카오t":"카카오T", "택시":"카카오T",
+  "cu":"편의점", "gs25":"편의점", "세븐일레븐":"편의점", "이마트24":"편의점",
+  "이마트":"대형마트", "홈플러스":"대형마트", "롯데마트":"대형마트", "코스트코":"대형마트",
+  "주유":"주유소", "기름":"주유소", "gs칼텍스":"주유소", "sk에너지":"주유소",
+  "야놀자":"야놀자/여기어때", "여기어때":"야놀자/여기어때",
+  "대한항공":"항공사 직접결제", "아시아나":"항공사 직접결제", "제주항공":"항공사 직접결제",
+  "cgv":"영화관", "메가박스":"영화관", "롯데시네마":"영화관",
+  "올리브영":"올리브영", "다이소":"다이소",
+  "ssg":"SSG닷컴", "쓱":"SSG닷컴",
+  "11st":"11번가"
+};
+
+function searchMerchants(q){
+  const query = q.trim().toLowerCase();
+  if(!query) return [];
+  const hits = new Map();
+
+  // 1) 가맹점명 직접 매칭
+  MERCHANT_INDEX.forEach(it=>{
+    if(it.merchant.toLowerCase().includes(query)){
+      hits.set(it.merchant + '|' + it.category, it);
+    }
+  });
+  // 2) 별칭 매칭
+  Object.entries(MERCHANT_ALIAS).forEach(([alias, target])=>{
+    if(alias.includes(query) || query.includes(alias)){
+      MERCHANT_INDEX.filter(it=>it.merchant===target).forEach(it=>{
+        hits.set(it.merchant + '|' + it.category, it);
+      });
+    }
+  });
+  // 3) 카테고리명 매칭 (가맹점 지정 없이 카테고리만 잡고 싶을 때)
+  CATEGORIES.forEach(cat=>{
+    if(cat.toLowerCase().includes(query)){
+      hits.set('|' + cat, {merchant:'', category:cat});
+    }
+  });
+  return Array.from(hits.values()).slice(0, 8);
+}
+
+function renderSearchResult(){
+  const q = document.getElementById('rcSearch').value;
+  const box = document.getElementById('rcSearchResult');
+  if(!q.trim()){ box.innerHTML=''; return; }
+  const res = searchMerchants(q);
+  if(!res.length){
+    box.innerHTML = `<div class="sr-none">일치하는 가맹점이 없습니다. 아래에서 카테고리를 직접 골라 주세요.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="sr-list">` + res.map((r,i)=>`
+    <div class="sr-item">
+      <div>
+        <div class="sr-name">${r.merchant || deco(r.category)}</div>
+        <div class="sr-cat">${r.merchant ? deco(r.category) : '카테고리 전체'}</div>
+      </div>
+      <button class="sr-go" onclick="pickSearch(${i})">선택</button>
+    </div>`).join('') + `</div>`;
+  window.__searchRes = res;
+}
+
+function pickSearch(idx){
+  const r = (window.__searchRes||[])[idx];
+  if(!r) return;
+  document.getElementById('rcCategory').value = r.category;
+  refreshMerchantSelect();
+  if(r.merchant) document.getElementById('rcMerchant').value = r.merchant;
+  document.getElementById('rcSearch').value = '';
+  document.getElementById('rcSearchResult').innerHTML = '';
+  showToast(r.merchant ? `${r.merchant} 선택됨` : `${r.category} 선택됨`);
+  document.getElementById('rcAmount').focus();
+}
+window.pickSearch = pickSearch;
+document.getElementById('rcSearch').addEventListener('input', renderSearchResult);
+
+document.getElementById('mlCategory').innerHTML =
+  CATEGORIES.map(c=>`<option value="${c}">${deco(c)}</option>`).join('');
+document.getElementById('mlDate').valueAsDate = new Date();
 renderAll();
 </script>
 </body>
